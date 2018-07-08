@@ -217,7 +217,7 @@ var imapMailExtractor = {
 
        var start=folderMessages.ancestors.indexOf( folderMessages.root)
         if(start<0)
-            return callback(null);
+            return callback(null,0);
 
             for (var i = start; i < folderMessages.ancestors.length; i++) {
 
