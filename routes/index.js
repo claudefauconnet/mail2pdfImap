@@ -37,8 +37,8 @@ function processResponse(response, error, result) {
                 error = JSON.stringify(error, null, 2);
             }
             console.log("ERROR !!" + error);
-            socket.message("ERROR !!" + error);
-            response.status(404).send({ERROR: error});
+          //  socket.message("ERROR !!" + error);
+            response.status(404).send( error);
 
         }
         else if (!result) {

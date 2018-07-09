@@ -77,7 +77,12 @@ var imapMailExtractor = {
             });
 
 
-        })
+        }).once('error', function(err) {
+            console.log('Fetch error: ' + err.message);
+            callback(err.message);
+        }).once('end', function () {
+            imap.end();
+        });
         imap.connect();
     }
     ,
@@ -117,10 +122,9 @@ var imapMailExtractor = {
 
                     });
                 });
-                f.once('error', function (err) {
-                    console.log('Fetch error: ' + err);
-                  //  return callback(null, messages)
-
+                f.once('error', function(err) {
+                    console.log('Fetch error: ' + err.message);
+                    callback(err.message);
                 });
                 f.once('end', function () {
                     callback(null, messages)
@@ -161,15 +165,17 @@ var imapMailExtractor = {
                     box += folder.ancestors[i];
                 }
                 imapMailExtractor.getFolderMessages(mailAdress, password, box, function (err, messages) {
-                    var message=" Processing "+messages.length+ " from server in folder "+box;
-                    socket.message(message);
-                    var xx = 1;
+
+
                     if (err) {
                         console.log(err);
                         return;// callbackEachFolder();
                     }
 
                     else {
+                        var message=" Processing "+messages.length+ " from server in folder "+box;
+                        socket.message(message);
+                        var xx = 1;
                         if (messages.length == 0)
                             return callbackEachFolder();
                         folderMessages.messages = messages;

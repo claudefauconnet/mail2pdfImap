@@ -43,6 +43,7 @@ self.currentState="";
                     $("#generateFolderPdfArchiveButton").css("visibility","visible");
                     $("#generateFolderPdfArchiveWithAttachmentButton").css("visibility","visible");
                     $("#messageDiv2").html("");
+                    $("#messageDiv").html(data.node.text+ " selected");
 
 
                 })
@@ -50,7 +51,7 @@ self.currentState="";
             error: function (err) {
                 console.log(err);
                 self.currentState="";
-                $("#messageDiv").html("ERROR "+err);
+                $("#messageDiv").html("ERROR "+err.responseText);
             }
         })
 
@@ -112,7 +113,7 @@ self.getJsTreeSelectedNodes=function(){
             error: function (err) {
                 console.log(err);
                 self.currentState="";
-                $("#messageDiv").html("ERROR : "+err);
+                $("#messageDiv").html("ERROR : "+err.responseText);
             }
         })
 
