@@ -84,7 +84,8 @@ var mailPdfGenerator = {
 
             var doc = new PDFDocument
             var pdfPath=path.resolve(pdfDirPath + "/" + pdfFileName);
-            console.log("--processing--"+pdfFileName)
+           // console.log("--processing--"+pdfFileName);
+
             doc.pipe(fs.createWriteStream(pdfPath));
 
 

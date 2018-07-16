@@ -24,7 +24,6 @@
 
                 if (!message || message.length == 0)
                     return;
-
                 if(imapController.currentState=="ARCHIVE_PROCESSING")
                 $("#messageDiv2").append(message+"<br>");
                 else
@@ -81,8 +80,9 @@
 <br>
 <table>
     <tr>
-        <td><div id="jstreeDiv" style="font-weight: normal;color: saddlebrown"></div></td>
-        <td><div id="messageDiv2"></div></td>
+        <td><div id="jstreeDiv" style="font-weight: normal;color: saddlebrown;height: 500px; overflow: auto;"></div>
+        </td>
+        <td valign="top"><img id="waitImg" src="images/waitAnimated.gif" width="50px" style="visibility: hidden;"><span id="messageDiv3" style="font-weight: bold"></span><br><div id="messageDiv2"></div></td>
     </tr>
 </table>
 

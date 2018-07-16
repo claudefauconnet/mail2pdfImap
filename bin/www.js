@@ -32,8 +32,10 @@ server.on('listening', onListening);
 var io = require('socket.io').listen(server);
 
 io.on('connection', function(client) {
+//console.log(JSON.stringify(client));
+
     socket.stuff(client, io);
-    console.log('Client connected...');
+    console.log('Client connected ip :'+ client.conn.remoteAddress+" at "+new Date());
 
 
     client.on('join', function(data) {

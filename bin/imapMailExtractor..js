@@ -12,8 +12,12 @@ var socket = require('../routes/socket.js');
 var host = 'imap.atd-quartmonde.org';
 var port = 993;
 
+/*var host = 'imap.sfr.fr';
+var port = 993;*/
 
 var pdfArchiveDir = "./pdfs";
+
+var skippedFolders=["Autres utilisateurs","Dossiers partagés"];
 
 var imapMailExtractor = {
 
@@ -37,8 +41,8 @@ var imapMailExtractor = {
     getFolderHierarchy: function (mailAdress, password, rootFolder, callback) {
 
         var imap = imapMailExtractor.getImapConn(mailAdress, password);
-        var leafFolder=rootFolder;
-        if(rootFolder) {
+        var leafFolder = rootFolder;
+        if (rootFolder) {
             var p = rootFolder.lastIndexOf("/");
             if (p > -1)
                 leafFolder = rootFolder.substring(p + 1);
@@ -52,11 +56,24 @@ var imapMailExtractor = {
                 var tree = [];
                 var id = 1000;
 
+                /*    for (var key in result) {
+                        if (false && result[key].children)
+                            ;//  more(undefined, boxes[key].children, path + key + boxes[key].delimiter);
+                        else {
+                            console.log('status: ' + key);
+                            imap.status(key, function (err, box) {
+                                if(key=="Dossiers partagés")
+                                    var xx=1;
+                                console.log(key, err, JSON.stringify(box,null,2));
+                            });
+                        }
+                    }
+    return;*/
                 function recurse(idParent, object, ancestors) {
 
 
                     for (var key in object) {
-                        if (!rootFolder || rootFolder.indexOf(key)>-1 || ancestors.indexOf(leafFolder) > -1) {
+                        if (!rootFolder || rootFolder.indexOf(key) > -1 || ancestors.indexOf(leafFolder) > -1) {
 
                             id += 1;
                             var ancestors2 = ancestors.slice(0);
@@ -77,7 +94,7 @@ var imapMailExtractor = {
             });
 
 
-        }).once('error', function(err) {
+        }).once('error', function (err) {
             console.log('Fetch error: ' + err.message);
             callback(err.message);
         }).once('end', function () {
@@ -122,7 +139,7 @@ var imapMailExtractor = {
 
                     });
                 });
-                f.once('error', function(err) {
+                f.once('error', function (err) {
                     console.log('Fetch error: ' + err.message);
                     callback(err.message);
                 });
@@ -138,24 +155,27 @@ var imapMailExtractor = {
 
     },
 
-    generateFolderHierarchyMessages: function (mailAdress, password, rootFolder,withAttachments, callback) {
-        var leafFolder=rootFolder;
-        if(rootFolder) {
+    generateFolderHierarchyMessages: function (mailAdress, password, rootFolder, withAttachments, callback) {
+        var leafFolder = rootFolder;
+        if (rootFolder) {
             var p = rootFolder.lastIndexOf("/");
             if (p > -1)
                 leafFolder = rootFolder.substring(p + 1);
         }
-        var message=" start extracting messages from "+rootFolder;
+        var message = " start extracting messages from " + leafFolder;
         socket.message(message);
-        var totalMails=0;
+        var totalMails = 0;
         imapMailExtractor.getFolderHierarchy(mailAdress, password, rootFolder, function (err, folders) {
             var output = [];
 
 
             async.eachSeries(folders, function (folder, callbackEachFolder) {
 
+                if(skippedFolders.indexOf(folder.text)>-1){
+                  return   callbackEachFolder();
+                }
 
-                var folderMessages = {folder: folder.text, ancestors: folder.ancestors, messages: [],root:leafFolder}
+                var folderMessages = {folder: folder.text, ancestors: folder.ancestors, messages: [], root: leafFolder}
 
 
                 var box = "";
@@ -173,17 +193,17 @@ var imapMailExtractor = {
                     }
 
                     else {
-                        var message=" Processing "+messages.length+ " from server in folder "+box;
+                        var message = " Processing " + messages.length + " from server in folder " + box;
                         socket.message(message);
                         var xx = 1;
                         if (messages.length == 0)
                             return callbackEachFolder();
                         folderMessages.messages = messages;
-                        imapMailExtractor.createFolderPdfs(mailAdress, folderMessages,withAttachments, function (err, result) {
+                        imapMailExtractor.createFolderPdfs(mailAdress, folderMessages, withAttachments, function (err, result) {
                             if (err) {
                                 return callbackEachFolder(err)
                             }
-                            totalMails+=result;
+                            totalMails += result;
                             return callbackEachFolder();
                         });
                         // output.push(folderMessages);
@@ -199,11 +219,11 @@ var imapMailExtractor = {
                     console.log(err);
                     return callback(err)
                 }
-                return callback(null, "Total mails Processed"+totalMails );
+                return callback(null, "Total mails Processed" + totalMails);
             })
         })
     },
-    createFolderPdfs: function (mailAdress, folderMessages,withAttachments, callback) {
+    createFolderPdfs: function (mailAdress, folderMessages, withAttachments, callback) {
         //set pdf files path
         var pdfDirPath = pdfArchiveDir;
         pdfDirPath += "/" + mailAdress;
@@ -212,28 +232,28 @@ var imapMailExtractor = {
             fs.mkdirSync(dir);
         }
 
-       /* var date = new Date();
-        var senderDateDir = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + (date.getDate());
+        /* var date = new Date();
+         var senderDateDir = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + (date.getDate());
 
-        pdfDirPath += "/" + senderDateDir;
-        var dir = path.resolve(pdfDirPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir);
-        }*/
+         pdfDirPath += "/" + senderDateDir;
+         var dir = path.resolve(pdfDirPath);
+         if (!fs.existsSync(dir)) {
+             fs.mkdirSync(dir);
+         }*/
 
-       var start=folderMessages.ancestors.indexOf( folderMessages.root)
-        if(start<0)
-            return callback(null,0);
+        var start = folderMessages.ancestors.indexOf(folderMessages.root)
+        if (start < 0)
+            return callback(null, 0);
 
-            for (var i = start; i < folderMessages.ancestors.length; i++) {
+        for (var i = start; i < folderMessages.ancestors.length; i++) {
 
-                pdfDirPath += "/" + folderMessages.ancestors[i];
-                var dir = path.resolve(pdfDirPath)
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir);
-                }
-
+            pdfDirPath += "/" + folderMessages.ancestors[i];
+            var dir = path.resolve(pdfDirPath)
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir);
             }
+
+        }
 
         //end set pdf files path
 
@@ -244,7 +264,7 @@ var imapMailExtractor = {
                     return callbackEachMail(err);
                 }
 
-                mailPdfGenerator.createMailPdf(pdfDirPath, mail,withAttachments, function (err, result) {
+                mailPdfGenerator.createMailPdf(pdfDirPath, mail, withAttachments, function (err, result) {
                     if (err) {
                         console.log(err);
                         return callbackEachMail(err);
@@ -261,27 +281,27 @@ var imapMailExtractor = {
                 console.log(err);
                 return callback(err);
             }
-            return callback(null,folderMessages.messages.length);
+            return callback(null, folderMessages.messages.length);
         });
 
 
     },
-    downloadArchive:function(mailAdress, rootFolder, response){
+    downloadArchive: function (mailAdress, rootFolder, response) {
 
-        socket.message("download pdfMailArchive-"+rootFolder+"-"+mailAdress+" STARTED");
+        socket.message("download pdfMailArchive-" + rootFolder + "-" + mailAdress + " STARTED");
         var pdfDirPath = pdfArchiveDir;
         pdfDirPath += "/" + mailAdress;
         var dir = path.resolve(pdfDirPath);
 
 
         zipdir(dir, function (err, buffer) {
-            if(err)
-                return  callback(err);
+            if (err)
+                return callback(err);
 
             response.setHeader('Content-type', 'application/zip');
-            response.setHeader("Content-Disposition", "attachment;filename=pdfMailArchive-"+rootFolder+"-"+mailAdress +".zip");
+            response.setHeader("Content-Disposition", "attachment;filename=pdfMailArchive-" + rootFolder + "-" + mailAdress + ".zip");
             response.send(buffer);
-            socket.message("download pdfMailArchive-"+rootFolder+"-"+mailAdress+" DONE");
+            socket.message("download pdfMailArchive-" + rootFolder + "-" + mailAdress + " DONE");
         });
 
     }
@@ -293,17 +313,17 @@ var options = {
     user: 'claude.fauconnet@atd-quartmonde.org',
     password: 'fc6kDgD8'
 }
+
+/*var optionsSfr = {
+    user: 'claude.fauconnet@neuf.fr',
+    password: '964999'
+}*/
 module.exports = imapMailExtractor;
+
+
 if (false) {
-
-    imapMailExtractor.getFolderHierarchy(options.user, options.password, "testMail2Pdf", function (err, result) {
-
-    })
-
-
-}
-if (false) {
-    imapMailExtractor.getFolderMessages(options.user, options.password, "testMail2Pdf", function (err, result) {
+ //   imapMailExtractor.getFolderMessages(options.user, options.password, "Autres utilisateurs/administration.cijw", function (err, result) {
+        imapMailExtractor.getFolderMessages(options.user, options.password, "Dossiers partagés/ecritheque", function (err, result) {
 
     })
 
@@ -317,3 +337,10 @@ if (false) {
 
 }
 
+if (false) {
+
+
+    imapMailExtractor.getFolderMessages(options.user, options.password, "ecritheque@atd-quartmonde.org", function (err, result) {
+
+    })
+}

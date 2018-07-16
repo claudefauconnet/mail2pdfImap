@@ -3,7 +3,7 @@ var imapController = (function () {
 self.currentState="";
     self.loadTreeHierarchy = function () {
 
-
+        $("#waitImg").css("visibility", "visible")
         var payload = {
             getFolderHierarchy: 1,
          //   rootFolder: "testMail2Pdf",
@@ -17,6 +17,7 @@ self.currentState="";
             data: payload,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
+                $("#waitImg").css("visibility", "hidden")
                 if (data.length == 0) {
                     return;
 
@@ -43,12 +44,14 @@ self.currentState="";
                     $("#generateFolderPdfArchiveButton").css("visibility","visible");
                     $("#generateFolderPdfArchiveWithAttachmentButton").css("visibility","visible");
                     $("#messageDiv2").html("");
+                    $("#messageDiv3").html("");
                     $("#messageDiv").html(data.node.text+ " selected");
 
 
                 })
             },
             error: function (err) {
+                $("#waitImg").css("visibility", "hidden")
                 console.log(err);
                 self.currentState="";
                 $("#messageDiv").html("ERROR "+err.responseText);
@@ -61,6 +64,8 @@ self.currentState="";
 self.getJsTreeSelectedNodes=function(){
     var selectedData = [];
     var selectedIndexes;
+    $("#messageDiv2").html("");
+    $("#messageDiv3").html("");
     selectedIndexes = $("#jstreeDiv").jstree("get_selected", true);
     jQuery.each(selectedIndexes, function (index, value) {
         selectedData.push(selectedIndexes[index]);
@@ -75,7 +80,9 @@ self.getJsTreeSelectedNodes=function(){
             return alert("select a root folder first");
 
         }
+        $("#messageDiv3").html("Processing...");
         $("#messageDiv2").html("");
+        $("#waitImg").css("visibility", "visible")
         self.currentState="ARCHIVE_PROCESSING";
         var folder = selectedNodes[0];
         var folderPath="";
@@ -100,17 +107,18 @@ self.getJsTreeSelectedNodes=function(){
             data: payload,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
+                self.currentState="ARCHIVE_DONE";
+                $("#waitImg").css("visibility", "hidden")
+                $("#messageDiv3").html("<B>"+data.result+"</B>");
+                $("#downloadArchiveButton").css("visibility","visible");
                 if (data.length == 0) {
                     return;
 
                 }
-                self.currentState="ARCHIVE_DONE";
-                $("#messageDiv2").append("<B>"+data.result+"</B>");
-                $("#downloadArchiveButton").css("visibility","visible");
-
 
             },
             error: function (err) {
+                $("#waitImg").css("visibility", "hidden")
                 console.log(err);
                 self.currentState="";
                 $("#messageDiv").html("ERROR : "+err.responseText);
@@ -127,6 +135,7 @@ self.getJsTreeSelectedNodes=function(){
             return alert("select a  folder first and process it first");
 
         }
+
         var folder=selectedNodes[0].text
         var payload = {
             downloadArchive: 1,
