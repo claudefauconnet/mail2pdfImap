@@ -26,12 +26,12 @@
  ******************************************************************************/
 
 var fs = require('fs')
-var modulesDir="";//'../../../../nodeJS/node_modules/'
-var PDFDocument = require(modulesDir+'pdfkit');
+var modulesDir = "";//'../../../../nodeJS/node_modules/'
+var PDFDocument = require(modulesDir + 'pdfkit');
 var path = require('path');
 var common = require('./common.js');
 
-var addMetaData=false;
+var addMetaData = false;
 
 
 var mailPdfGenerator = {
@@ -40,18 +40,14 @@ var mailPdfGenerator = {
     addMetaData: true
     ,
 
-    createMailPdf: function (pdfDirPath, mail,withAttachments,callback) {
+    createMailPdf: function (pdfDirPath, mail, withAttachments, callback) {
         try {
-        
+
 
             if (mail.html)
                 mail.html = mailPdfGenerator.removeHtmlTags(mail.html);
             if (mail.text)
                 mail.text = mailPdfGenerator.removeHtmlTags(mail.text);
-
-
-       
-
 
 
             var mailTitle;
@@ -75,17 +71,18 @@ var mailPdfGenerator = {
                         //    var id = mail.attachments[i].contentId;
 
                         var attachmentName = mailPdfGenerator.processAttachment(mail.attachments[i], pdfDirPath, pdfFileName);
-                        if(attachmentName)
-                        attachments.push(attachmentName);//"<a href='attachments/"+attachmentName+"'>"+mail.attachments[i].filename + "</a>\n";
+                        if (attachmentName)
+                            attachments.push(attachmentName);//"<a href='attachments/"+attachmentName+"'>"+mail.attachments[i].filename + "</a>\n";
                     }
                 }
             }
 
 
             var doc = new PDFDocument
-            var pdfPath=path.resolve(pdfDirPath + "/" + pdfFileName);
-           // console.log("--processing--"+pdfFileName);
-
+            var pdfPath = path.resolve(pdfDirPath + "/" + pdfFileName);
+            // console.log("--processing--"+pdfFileName);
+            if (fs.existsSync(pdfPath))
+                fs.unlinkSync(pdfPath)
             doc.pipe(fs.createWriteStream(pdfPath));
 
 
@@ -223,12 +220,12 @@ var mailPdfGenerator = {
 
 
             doc.end();
-           // archiveProcessor.totalPdfSaved += 1
+            // archiveProcessor.totalPdfSaved += 1
             return callback(null, {path: pdfDirPath, file: pdfFileName});
         }
         catch (e) {
-            console.log (" ERROR , file "+pdfFileName+" skipped : "+e);
-           return  callback(e)
+            console.log(" ERROR , file " + pdfFileName + " skipped : " + e);
+            return callback(e)
         }
     },
     formatStringForArchive: function (str, maxLength) {
@@ -254,10 +251,10 @@ var mailPdfGenerator = {
         var fwdArray = str0.match(fwd);
         if (fwdArray && fwdArray.length > 1) {
 
-            str = str.replace(re, "") + "-Fwd-" + fwdArray.length;
+            str = str.replace(fwd, "") + "-Fwd-" + fwdArray.length;
         }
         else if (reArray && reArray.length == 1) {// on met Re_ en fin
-            str = str.replace(re, "") + "-Fwd"
+            str = str.replace(fwd, "") + "-Fwd"
         }
         return str;
     }, removeHtmlTags: function (str) {
@@ -308,7 +305,7 @@ var mailPdfGenerator = {
          }*/
         var attachmentFileName = pdfPreffix + "__" + attachment.filename
         if (attachment.content.length > 5000000) {
-           // archiveProcessor.consoleToFile("BBBBBBBBBBBBBBBBB-BigAttachment " + pdfDirPath + "/" + pdfFileName);
+            // archiveProcessor.consoleToFile("BBBBBBBBBBBBBBBBB-BigAttachment " + pdfDirPath + "/" + pdfFileName);
             var attachmentFileName = pdfPreffix + "BIG-FILE__" + "__" + attachment.filename;
             var file = path.resolve(attachmentsDir + "/" + attachmentFileName);
             fs.writeFileSync(file, "BigAttachment content removed, size : " + attachment.content.size);

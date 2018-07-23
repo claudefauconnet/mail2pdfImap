@@ -61,4 +61,5 @@ typings/
 .next
 
 pdfs/*
+!pdfs/.gitkeep
 package.jsonOld

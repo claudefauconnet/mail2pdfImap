@@ -17,10 +17,10 @@ var port = 993;*/
 
 var pdfArchiveDir = "./pdfs";
 
-var skippedFolders=["Autres utilisateurs","Dossiers partagés"];
+var skippedFolders = ["Autres utilisateurs", "Dossiers partagés"];
 
 var imapMailExtractor = {
-
+    deleteDirAfterZip: true,
 
     getImapConn: function (mailAdress, password) {
         var imap = new Imap({
@@ -87,7 +87,7 @@ var imapMailExtractor = {
 
                 }
 
-                recurse("#", result, [])
+                recurse("#", result, []);
 
 
                 return callback(null, tree);
@@ -171,8 +171,8 @@ var imapMailExtractor = {
 
             async.eachSeries(folders, function (folder, callbackEachFolder) {
 
-                if(skippedFolders.indexOf(folder.text)>-1){
-                  return   callbackEachFolder();
+                if (skippedFolders.indexOf(folder.text) > -1) {
+                    return callbackEachFolder();
                 }
 
                 var folderMessages = {folder: folder.text, ancestors: folder.ancestors, messages: [], root: leafFolder}
@@ -193,6 +193,9 @@ var imapMailExtractor = {
                     }
 
                     else {
+                        if (box.indexOf(leafFolder) < 0) {
+                            return callbackEachFolder()
+                        }
                         var message = " Processing " + messages.length + " from server in folder " + box;
                         socket.message(message);
                         var xx = 1;
@@ -259,6 +262,7 @@ var imapMailExtractor = {
 
         async.eachSeries(folderMessages.messages, function (rawMessage, callbackEachMail) {
             simpleParser(rawMessage, function (err, mail) {
+                console.log(mail.subject);
                 if (err) {
                     console.log(err);
                     return callbackEachMail(err);
@@ -302,11 +306,29 @@ var imapMailExtractor = {
             response.setHeader("Content-Disposition", "attachment;filename=pdfMailArchive-" + rootFolder + "-" + mailAdress + ".zip");
             response.send(buffer);
             socket.message("download pdfMailArchive-" + rootFolder + "-" + mailAdress + " DONE");
+            if (imapMailExtractor.deleteDirAfterZip)
+                imapMailExtractor.deleteFolderRecursive(dir);
+
         });
 
     }
 
 
+
+
+    ,deleteFolderRecursive: function (path) {
+        if (fs.existsSync(path)) {
+            fs.readdirSync(path).forEach(function (file, index) {
+                var curPath = path + "/" + file;
+                if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                    imapMailExtractor.deleteFolderRecursive(curPath);
+                } else { // delete file
+                    fs.unlinkSync(curPath);
+                }
+            });
+            fs.rmdirSync(path);
+        }
+    }
 }
 
 var options = {
@@ -322,8 +344,8 @@ module.exports = imapMailExtractor;
 
 
 if (false) {
- //   imapMailExtractor.getFolderMessages(options.user, options.password, "Autres utilisateurs/administration.cijw", function (err, result) {
-        imapMailExtractor.getFolderMessages(options.user, options.password, "Dossiers partagés/ecritheque", function (err, result) {
+    //   imapMailExtractor.getFolderMessages(options.user, options.password, "Autres utilisateurs/administration.cijw", function (err, result) {
+    imapMailExtractor.getFolderMessages(options.user, options.password, "Dossiers partagés/ecritheque", function (err, result) {
 
     })
 
