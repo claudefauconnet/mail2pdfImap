@@ -26,8 +26,10 @@
                     return;
                 if(imapController.currentState=="ARCHIVE_PROCESSING")
                 $("#messageDiv2").append(message+"<br>");
-                else
+                else {
                     $("#messageDiv").html(message);
+                    $("#messageDiv3").prepend(message+"<br>" );
+                }
             })
         })
 
@@ -73,7 +75,7 @@
 
             <button id="generateFolderPdfArchiveWithAttachmentButton" style="visibility: hidden" onclick="imapController.generateFolderPdfArchive(true);">2b.generate pdf + attachments</button>&nbsp;
 
-            <button id="downloadArchiveButton"  style="visibility: hidden"  onclick="imapController.downloadArchive();">3. download zip archive</button>&nbsp;
+       <!--     <button id="downloadArchiveButton"  style="visibility: hidden"  onclick="imapController.downloadArchive();">3. download zip archive</button>&nbsp;-->
 
 <br>
 <div id="messageDiv"  style="font-weight: bold;color: blue"></div>

@@ -1,6 +1,7 @@
 var imapController = (function () {
     var self = {};
 self.currentState="";
+self.currentFolder="";
     self.loadTreeHierarchy = function () {
 
         $("#waitImg").css("visibility", "visible")
@@ -70,6 +71,7 @@ self.getJsTreeSelectedNodes=function(){
     jQuery.each(selectedIndexes, function (index, value) {
         selectedData.push(selectedIndexes[index]);
     });
+    self.currentFolder=selectedData[0].text;
     return selectedData;
 }
     self.generateFolderPdfArchive = function (withAttachments) {
@@ -114,7 +116,10 @@ self.getJsTreeSelectedNodes=function(){
                 if (data.length == 0) {
                     return;
 
-                }
+                }setTimeout(function(){// time to effectivly write files on server (if zip is incomplete and delete dir fails ( not empty)
+                    self.downloadArchive()
+                },3000)
+
 
             },
             error: function (err) {
@@ -129,17 +134,18 @@ self.getJsTreeSelectedNodes=function(){
     }
 
 
-    self.downloadArchive = function (url, payload) {
-        var selectedNodes=self.getJsTreeSelectedNodes();
+    self.downloadArchive = function () {
+     /*   var selectedNodes=self.getJsTreeSelectedNodes();
         if(selectedNodes.length==0){
             return alert("select a  folder first and process it first");
 
         }
 
-        var folder=selectedNodes[0].text
+        var folder=selectedNodes[0].text*/
+
         var payload = {
             downloadArchive: 1,
-            rootFolder: folder,
+            rootFolder: self.currentFolder,
             mailAdress: $("#mailInput").val(),
 
         }

@@ -222,7 +222,7 @@ var imapMailExtractor = {
                     console.log(err);
                     return callback(err)
                 }
-                return callback(null, "Total mails Processed" + totalMails);
+                return callback(null, "Total mails Processed" + totalMails+" preparing zip download...");
             })
         })
     },
@@ -271,7 +271,7 @@ var imapMailExtractor = {
                 mailPdfGenerator.createMailPdf(pdfDirPath, mail, withAttachments, function (err, result) {
                     if (err) {
                         console.log(err);
-                        return callbackEachMail(err);
+                        //   return callbackEachMail(err);
                     }
                     return callbackEachMail(null);
                 });
@@ -314,9 +314,7 @@ var imapMailExtractor = {
     }
 
 
-
-
-    ,deleteFolderRecursive: function (path) {
+    , deleteFolderRecursive: function (path) {
         if (fs.existsSync(path)) {
             fs.readdirSync(path).forEach(function (file, index) {
                 var curPath = path + "/" + file;
@@ -326,20 +324,17 @@ var imapMailExtractor = {
                     fs.unlinkSync(curPath);
                 }
             });
-            fs.rmdirSync(path);
+            try {
+                fs.rmdirSync(path);
+            }
+            catch (e) {
+                console.log(e);
+            }
         }
     }
 }
 
-var options = {
-    user: 'claude.fauconnet@atd-quartmonde.org',
-    password: 'fc6kDgD8'
-}
 
-/*var optionsSfr = {
-    user: 'claude.fauconnet@neuf.fr',
-    password: '964999'
-}*/
 module.exports = imapMailExtractor;
 
 
