@@ -19,7 +19,7 @@ router.post('/imap', function (req, response) {
             processResponse(response, error, result)
         });
     if (req.body.downloadArchive)
-        imapMailExtractor.downloadArchive(req.body.mailAdress,req.body.rootFolder, response);
+        imapMailExtractor.downloadArchive(req.body.mailAdress,req.body.pdfArchiveRootPath, response);
 
 });
 

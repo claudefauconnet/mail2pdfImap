@@ -30,6 +30,8 @@ var modulesDir = "";//'../../../../nodeJS/node_modules/'
 var PDFDocument = require(modulesDir + 'pdfkit');
 var path = require('path');
 var common = require('./common.js');
+var socket = require('../routes/socket.js');
+var exec = require('child_process').exec;
 
 var addMetaData = false;
 
@@ -37,7 +39,9 @@ var addMetaData = false;
 var mailPdfGenerator = {
     pdfDir: "",//"pdfArchives",
     maxPdfSubjectLength: 33,
-    addMetaData: true
+    addMetaData: true,
+    attachmentMaxSize: 5000000,
+    attachmentsExcluded:["logosignature.png","atd_slogan.png"]
     ,
 
     createMailPdf: function (pdfDirPath, mail, withAttachments, callback) {
@@ -79,10 +83,12 @@ var mailPdfGenerator = {
 
 
             var doc = new PDFDocument
-            var pdfPath = path.resolve(pdfDirPath + "/" + pdfFileName);
+
+
+            var pdfPath = path.resolve(pdfDirPath + "/" + pdfFileName+"_");
             // console.log("--processing--"+pdfFileName);
-            if (fs.existsSync(pdfPath))
-                fs.unlinkSync(pdfPath)
+            /* if (fs.existsSync(pdfPath))
+                 fs.unlinkSync(pdfPath)*/
             doc.pipe(fs.createWriteStream(pdfPath));
 
 
@@ -220,6 +226,7 @@ var mailPdfGenerator = {
 
 
             doc.end();
+            mailPdfGenerator.convertToNewestPDFversion(pdfPath);
             // archiveProcessor.totalPdfSaved += 1
             return callback(null, {path: pdfDirPath, file: pdfFileName});
         }
@@ -293,6 +300,8 @@ var mailPdfGenerator = {
         if (attachment.filename.indexOf(".asc") > -1) {// attachment of type signature ???
             return;
         }
+        if(mailPdfGenerator.attachmentsExcluded.indexOf(attachment.filename)>-1)
+            return;
 
         var attachmentsDir = path.resolve(pdfDirPath + "/attachments");
         if (!fs.existsSync(attachmentsDir)) {
@@ -304,8 +313,8 @@ var mailPdfGenerator = {
              fs.mkdirSync(dir);
          }*/
         var attachmentFileName = pdfPreffix + "__" + attachment.filename
-        if (attachment.content.length > 5000000) {
-            // archiveProcessor.consoleToFile("BBBBBBBBBBBBBBBBB-BigAttachment " + pdfDirPath + "/" + pdfFileName);
+        if (attachment.content.length > mailPdfGenerator.attachmentMaxSize) {
+           socket.message("BBBBBBBBBBBBBBBBB-BigAttachment :"+(attachment.content.size/1000000)+"MO maximum " +(mailPdfGenerator.maxPdfSubjectLength/1000000)+"  "+ pdfDirPath + "/" + pdfFileName);
             var attachmentFileName = pdfPreffix + "BIG-FILE__" + "__" + attachment.filename;
             var file = path.resolve(attachmentsDir + "/" + attachmentFileName);
             fs.writeFileSync(file, "BigAttachment content removed, size : " + attachment.content.size);
@@ -314,6 +323,28 @@ var mailPdfGenerator = {
             fs.writeFileSync(file, attachment.content);
         }
         return attachmentFileName;
+    }
+    ,
+    convertToNewestPDFversion: function (inputFile) {
+//https://www.npmjs.com/package/ghostscript-js
+        //  gswin64.exe -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dNOPAUSE -dQUIET -dBATCH -sOutputFile=D:\GitHub\mail2pdfImap\pdfs\claude.fauconnet@atd-quartmonde.org_23679\testMail2Pdf\technique\moteurDerecherche\test2.pdf D:\GitHub\mail2pdfImap\pdfs\claude.fauconnet@atd-quartmonde.org_23679\testMail2Pdf\technique\moteurDerecherche\test.pdf
+
+      var ghostscriptExe="gs";
+        if (path.sep == "\\")//windows
+            ghostscriptExe="\"C:\\Program Files\\gs\\gs9.21\\bin\\gswin64.exe\""
+        var outputFile=inputFile.substring(0,inputFile.length-1)
+        var cmd = ghostscriptExe + " -sDEVICE=pdfwrite  -sPAPERSIZE=a4 -dCompatibilityLevel=1.5 -dNOPAUSE -dQUIET -dBATCH -sOutputFile="+outputFile+" "+ inputFile;
+
+        console.log("EXECUTING " + cmd)
+        exec(cmd,null, function (err, stdout, stderr) {
+            if (err) {
+                socket.message(err);
+                return;
+
+            }
+            fs.unlink(inputFile);
+        });
+
     }
 
 

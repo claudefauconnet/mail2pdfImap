@@ -111,13 +111,13 @@ self.getJsTreeSelectedNodes=function(){
             success: function (data, textStatus, jqXHR) {
                 self.currentState="ARCHIVE_DONE";
                 $("#waitImg").css("visibility", "hidden")
-                $("#messageDiv3").html("<B>"+data.result+"</B>");
+                $("#messageDiv3").html("<B>"+data.text+"</B>");
                 $("#downloadArchiveButton").css("visibility","visible");
                 if (data.length == 0) {
                     return;
 
                 }setTimeout(function(){// time to effectivly write files on server (if zip is incomplete and delete dir fails ( not empty)
-                    self.downloadArchive()
+                    self.downloadArchive(data.pdfArchiveRootPath)
                 },3000)
 
 
@@ -134,18 +134,12 @@ self.getJsTreeSelectedNodes=function(){
     }
 
 
-    self.downloadArchive = function () {
-     /*   var selectedNodes=self.getJsTreeSelectedNodes();
-        if(selectedNodes.length==0){
-            return alert("select a  folder first and process it first");
+    self.downloadArchive = function (pdfArchiveRootPath) {
 
-        }
-
-        var folder=selectedNodes[0].text*/
 
         var payload = {
             downloadArchive: 1,
-            rootFolder: self.currentFolder,
+            pdfArchiveRootPath: pdfArchiveRootPath,
             mailAdress: $("#mailInput").val(),
 
         }
