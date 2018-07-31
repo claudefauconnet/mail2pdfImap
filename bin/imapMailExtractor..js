@@ -22,7 +22,8 @@ var skippedFolders = ["Autres utilisateurs", "Dossiers partagés"];
 
 var imapMailExtractor = {
     deleteDirAfterZip: true,
-    archiveMaxSize: 1000 * 1000 * 50,//50MO
+    archiveMaxSize: 1000 * 1000 * 50,//50MO,
+    maxMessageSize: 1000 * 1000 * 5,
 
     getImapConn: function (mailAdress, password) {
         var imap = new Imap({
@@ -52,7 +53,7 @@ var imapMailExtractor = {
         imap.once('ready', function () {
             imap.getBoxes([], function (err, result) {
                 if (err)
-                    return callback(err)
+                    return callback(err);
 
                 var tree = [];
                 var id = 1000;
@@ -102,64 +103,84 @@ var imapMailExtractor = {
                     console.log(err);
                     return callback(err)
                 }
-                var f = imap.seq.fetch('1:*', {
-                    bodies: '',
-                    struct: true
-                });
 
-                f.on('message', function (msg, seqno) {
-                    var message = {};
-                    var encoding = [];
-                    //  message.seqno = seqno;
-                    msg.on('body', function (stream, info) {
-                        messages.folderSize += info.size;
+                var strsize = +imapMailExtractor.maxMessageSize;
+                imap.search([['SMALLER', strsize]], function (err, results) {
+                    console.log(results.size);
+                    var f = imap.seq.fetch(results, {
+                        bodies: '',
+                        //  bodies:['TEXT', 'HEADER.FIELDS (TO FROM SUBJECT)'],
+                        false: true
+                    });
 
-                        var buffer = '';
-                        stream.on('data', function (chunk) {
-                           // !!!!!!!!!!!determination de l'encodage du buffer pour le transformer en UTF8
-                                encoding = chardet.detectAll(chunk);
-                         //   console.log(encoding[0].name+" "+encoding[1].name);
-                                if (encoding.length > 0 && encoding[0].name != 'UTF-8') {
+                    f.on('message', function (msg, seqno) {
+                        var message = {};
+                        var encoding = [];
+                        var msgState = 1;
+                        //  message.seqno = seqno;
+                        msg.on('body', function (stream, info) {
+                            messages.folderSize += info.size;
+                            console.log(info.size);
 
-                                    var str = iconv.decode(chunk, encoding[0].name);
+                            var buffer = '';
+                            stream.on('data', function (chunk) {
+                                    if (msgState > 0 && info.size > imapMailExtractor.maxMessageSize) {
+                                        msgState = -1;
+                                        socket.message("mail exceed max size for archive " + info.size);
+                                        return;
+                                    }
+                                    // !!!!!!!!!!!determination de l'encodage du buffer pour le transformer en UTF8
+                                    encoding = chardet.detectAll(chunk);
+                                    //   console.log(encoding[0].name + " " + encoding[1].name);
+                                    if (encoding.length > 0 && encoding[0].name != 'UTF-8') {
+                                        try {
+                                            var str = iconv.decode(chunk, encoding[0].name);
+                                            buffer += str;
+                                        }
+                                        catch (e) {
+                                            socket.message(e.error);
+                                            console.log(e);
+                                            buffer += chunk.toString('utf8');
+                                        }
 
-                                    buffer += str;
+                                    }
+                                    else {
+                                        buffer += chunk.toString('utf8');
+                                    }
+
                                 }
-                                else {
-                                    buffer += chunk.toString('utf8');
-                                }
-                            }
-                        );
-                        stream.once('end', function () {
+                            );
+                            stream.once('end', function () {
+//console.log(buffer);
+                                //!!!!!!!!!!! on remplace   charset=windows-1252; lencodage du corps du texte par utf8 sinon mailparser ne fonctionne pas correctement : node_modules/mail-parser.js line 674
 
-                            //!!!!!!!!!!! on remplace   charset=windows-1252; lencodage du corps du texte par utf8 sinon mailparser ne fonctionne pas correctement : node_modules/mail-parser.js line 674
-
-                        buffer = buffer.replace(/charset=[a-zA-Z-0-9\-]*/g, "charset=utf8")
+                                buffer = buffer.replace(/charset=[a-zA-Z-0-9\-]*/g, "charset=utf8")
 
 
-                              //   console.log("w"+i+"  "+encoding[0].name+" "+encoding[1].name);
-                         //    fs.writeFileSync("D:\\test\\w" + (i++) + '.txt', encoding[0].name + " " + encoding[1].name + "\n" + buffer)
+                                //   console.log("w"+i+"  "+encoding[0].name+" "+encoding[1].name);
+                                //    fs.writeFileSync("D:\\test\\w" + (i++) + '.txt', encoding[0].name + " " + encoding[1].name + "\n" + buffer)
 
-                            messages.push(buffer);
+                                messages.push({content: buffer, seqno: seqno, bodyInfo: info.size});
+
+
+                            });
+                        });
+                        msg.once('attributes', function (attrs) {
+                            message.attributes = attrs;
+                        });
+                        msg.once('end', function () {
 
 
                         });
                     });
-                    msg.once('attributes', function (attrs) {
-                        //  message.attributes =attrs;
+                    f.once('error', function (err) {
+                        console.log('Fetch error: ' + err.message);
+                        callback(err.message);
                     });
-                    msg.once('end', function () {
-
-
+                    f.once('end', function () {
+                        callback(null, messages)
+                        imap.end();
                     });
-                });
-                f.once('error', function (err) {
-                    console.log('Fetch error: ' + err.message);
-                    callback(err.message);
-                });
-                f.once('end', function () {
-                    callback(null, messages)
-                    imap.end();
                 });
             });
 
@@ -197,10 +218,14 @@ var imapMailExtractor = {
 
 
             async.eachSeries(folders, function (folder, callbackEachFolder) {
-
+                // on ne traite pas les boites partagées (fausses racinbes qui font planter)
                 if (skippedFolders.indexOf(folder.text) > -1) {
                     return callbackEachFolder();
                 }
+
+                //on ne traite pas  les dossiers parents
+                if (folder.text != leafFolder && folder.ancestors.indexOf(leafFolder) < 0)
+                    return callbackEachFolder();
 
                 var folderMessages = {folder: folder.text, ancestors: folder.ancestors, messages: [], root: leafFolder}
 
@@ -291,14 +316,27 @@ var imapMailExtractor = {
         }
 
         //end set pdf files path
-
+        var folderMailSubjects = {};
         async.eachSeries(folderMessages.messages, function (rawMessage, callbackEachMail) {
-            simpleParser(rawMessage, function (err, mail) {
-               // console.log(mail.subject);
+            var bodyInfo = rawMessage.bodyInfo;
+            var seqno = rawMessage.seqno;
+            simpleParser(rawMessage.content, function (err, mail) {
+
                 if (err) {
                     console.log(err);
                     return callbackEachMail(err);
                 }
+                // process subjects to avoid duplicates
+                if (!mail.subject)
+                    mail.subject = "subject missing";
+                if (folderMailSubjects[mail.subject]) {
+                    folderMailSubjects[mail.subject] += 1;
+                    mail.subject += "-" + folderMailSubjects[mail.subject]
+                } else
+                    folderMailSubjects[mail.subject] = 0;
+
+                // console.log(mail.subject);
+
 
                 mailPdfGenerator.createMailPdf(pdfArchiveRootPath, mail, withAttachments, function (err, result) {
                     if (err) {
@@ -317,6 +355,7 @@ var imapMailExtractor = {
                 console.log(err);
                 return callback(err);
             }
+            console.log(JSON.stringify(folderMailSubjects, null, 2))
             return callback(null, folderMessages.messages.length);
         });
 
@@ -367,7 +406,11 @@ var imapMailExtractor = {
 
 module.exports = imapMailExtractor;
 
+var options = {
+    user: "claude.fauconnet@atd-quartmonde.org",
+    password: "fc6kDgD8"
 
+}
 if (false) {
     //   imapMailExtractor.getFolderMessages(options.user, options.password, "Autres utilisateurs/administration.cijw", function (err, result) {
     imapMailExtractor.getFolderMessages(options.user, options.password, "Dossiers partagés/ecritheque", function (err, result) {
@@ -377,8 +420,9 @@ if (false) {
 
 }
 if (false) {
-    imapMailExtractor.generateFolderHierarchyMessages(options.user, options.password, "testMail2Pdf", function (err, result) {
-
+    pdfArchiveDir = "D:\\GitHub\\mail2pdfImap\\pdfs\\"
+    imapMailExtractor.generateFolderHierarchyMessages(options.user, options.password, "Dossiers partagés/archives.cjw/02-Versements/2018", false, function (err, result) {
+console.log(result.message)
     })
 
 
@@ -387,7 +431,7 @@ if (false) {
 if (false) {
 
 
-    imapMailExtractor.getFolderMessages(options.user, options.password, "ecritheque@atd-quartmonde.org", function (err, result) {
+    imapMailExtractor.getFolderMessages(options.user, options.password, "Dossiers partagés/archives.cjw/02-Versements/2018", function (err, result) {
 
     })
 }

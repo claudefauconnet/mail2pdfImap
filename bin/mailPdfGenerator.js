@@ -31,7 +31,7 @@ var PDFDocument = require(modulesDir + 'pdfkit');
 var path = require('path');
 var common = require('./common.js');
 var socket = require('../routes/socket.js');
-var exec = require('child_process').exec;
+var execSync = require('child_process').execSync;
 
 var addMetaData = false;
 
@@ -59,13 +59,15 @@ var mailPdfGenerator = {
                 mailTitle = mail.subject;
             else
                 mailTitle = "mail_sans_sujet_" + Math.round(Math.random() * 1000000);
+            var initialName=mailTitle;
             var pdfFileName = mailTitle;
-            mailTitle = mailPdfGenerator.formatStringForArchive(mailTitle, mailPdfGenerator.maxPdfSubjectLength);
 
+            mailTitle = mailPdfGenerator.formatStringForArchive(mailTitle, mailPdfGenerator.maxPdfSubjectLength);
             mailTitle = mailPdfGenerator.removeMultipleReAndFwdInTitle(mailTitle);
             pdfFileName = common.dateToString(mail.date) + "-" + mailTitle + ".pdf";
             pdfFileName = mailPdfGenerator.processDuplicateMailTitles(pdfDirPath, pdfFileName);
 
+            console.log(initialName+"\t"+pdfFileName)
 
             var attachments = [];
             if (withAttachments && mail.attachments) {
@@ -85,7 +87,7 @@ var mailPdfGenerator = {
             var doc = new PDFDocument
 
 
-            var pdfPath = path.resolve(pdfDirPath + "/" + pdfFileName+"_");
+            var pdfPath = path.resolve(pdfDirPath + "/" + pdfFileName);
             // console.log("--processing--"+pdfFileName);
             /* if (fs.existsSync(pdfPath))
                  fs.unlinkSync(pdfPath)*/
@@ -226,7 +228,7 @@ var mailPdfGenerator = {
 
 
             doc.end();
-            mailPdfGenerator.convertToNewestPDFversion(pdfPath);
+        //    mailPdfGenerator.convertToNewestPDFversion(pdfPath);
             // archiveProcessor.totalPdfSaved += 1
             return callback(null, {path: pdfDirPath, file: pdfFileName});
         }
@@ -260,7 +262,7 @@ var mailPdfGenerator = {
 
             str = str.replace(fwd, "") + "-Fwd-" + fwdArray.length;
         }
-        else if (reArray && reArray.length == 1) {// on met Re_ en fin
+        else if (fwdArray && fwdArray.length == 1) {// on met Re_ en fin
             str = str.replace(fwd, "") + "-Fwd"
         }
         return str;
@@ -336,13 +338,18 @@ var mailPdfGenerator = {
         var cmd = ghostscriptExe + " -sDEVICE=pdfwrite  -sPAPERSIZE=a4 -dCompatibilityLevel=1.5 -dNOPAUSE -dQUIET -dBATCH -sOutputFile="+outputFile+" "+ inputFile;
 
         console.log("EXECUTING " + cmd)
-        exec(cmd,null, function (err, stdout, stderr) {
+        execSync(cmd, function (err, stdout, stderr) {
             if (err) {
                 socket.message(err);
                 return;
 
             }
-            fs.unlink(inputFile);
+            try {
+                fs.unlink(inputFile);
+            }
+            catch(e){
+                socket.message(e);
+            }
         });
 
     }
